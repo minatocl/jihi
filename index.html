@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="自費会計">
+<title>自費会計レジ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body style="margin:0">
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+// ---------- helpers ----------
+const yen = (n) => "¥" + (n || 0).toLocaleString("ja-JP");
+const todayISO = () => new Date().toISOString();
+const fmtDate = (iso) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+};
+const fmtDateTime = (iso) => {
+  const d = new Date(iso);
+  const p = (x) => String(x).padStart(2, "0");
+  return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+const monthKey = (iso) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const DEFAULT_CONFIG = {
+  clinicName: "みなとクリニック",
+  address: "神奈川県横浜市",
+  tel: "045-000-0000",
+  invoiceNo: "T0000000000000",
+  logo: null,
+  receiptCounter: 1,
+  menus: [
+    { id: "m1", name: "インフルエンザワクチン", price: 3500, taxRate: 10 },
+    { id: "m2", name: "診断書", price: 3300, taxRate: 10 },
+    { id: "m3", name: "プラセンタ注射", price: 2200, taxRate: 10 },
+  ],
+};
+
+async function loadKey(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+async function saveKey(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.error("storage error", e);
+    alert("保存に失敗しました。ストレージ容量を確認してください。");
+  }
+}
+
+// ---------- main ----------
+function JihiRegister() {
+  const [tab, setTab] = useState("register");
+  const [config, setConfig] = useState(DEFAULT_CONFIG);
+  const [sales, setSales] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  // register state
+  const [cart, setCart] = useState([]); // {menuId,name,price,taxRate,qty}
+  const [karteId, setKarteId] = useState("");
+  const [memo, setMemo] = useState("");
+  const [histQuery, setHistQuery] = useState("");
+  const [proviso, setProviso] = useState("自費診療代として");
+  const [receipt, setReceipt] = useState(null); // sale being printed
+  const [confirmDel, setConfirmDel] = useState(null);
+  const printTimer = useRef(null);
+
+  useEffect(() => {
+    (async () => {
+      const cfg = await loadKey("jihi-config", DEFAULT_CONFIG);
+      const s = await loadKey("jihi-sales", []);
+      setConfig({ ...DEFAULT_CONFIG, ...cfg });
+      setSales(s);
+      setLoaded(true);
+    })();
+    return () => clearTimeout(printTimer.current);
+  }, []);
+
+  const persistConfig = (next) => {
+    setConfig(next);
+    saveKey("jihi-config", next);
+  };
+  const persistSales = (next) => {
+    setSales(next);
+    saveKey("jihi-sales", next);
+  };
+
+  // ---------- cart ----------
+  const addToCart = (m) => {
+    setCart((c) => {
+      const hit = c.find((x) => x.menuId === m.id);
+      if (hit)
+        return c.map((x) =>
+          x.menuId === m.id ? { ...x, qty: x.qty + 1 } : x
+        );
+      return [...c, { menuId: m.id, name: m.name, price: m.price, taxRate: m.taxRate, qty: 1 }];
+    });
+  };
+  const changeQty = (menuId, delta) => {
+    setCart((c) =>
+      c
+        .map((x) => (x.menuId === menuId ? { ...x, qty: x.qty + delta } : x))
+        .filter((x) => x.qty > 0)
+    );
+  };
+  const cartTotal = cart.reduce((a, x) => a + x.price * x.qty, 0);
+  const taxable = cart.filter((x) => x.taxRate === 10).reduce((a, x) => a + x.price * x.qty, 0);
+  const exempt = cartTotal - taxable;
+  const taxIncluded = Math.floor((taxable * 10) / 110);
+
+  const issue = () => {
+    if (cart.length === 0) return;
+    const no = config.receiptCounter;
+    const sale = {
+      id: "s" + Date.now(),
+      receiptNo: no,
+      date: todayISO(),
+      patient: "",
+      memo: memo.trim(),
+      karteId: karteId.trim(),
+      proviso: proviso.trim() || "自費診療代として",
+      items: cart,
+      total: cartTotal,
+      taxable,
+      exempt,
+      taxIncluded,
+      voided: false,
+    };
+    persistSales([sale, ...sales]);
+    persistConfig({ ...config, receiptCounter: no + 1 });
+    setReceipt(sale);
+    setCart([]);
+    setKarteId("");
+    setMemo("");
+    setProviso("自費診療代として");
+    printTimer.current = setTimeout(() => window.print(), 400);
+  };
+
+  const reprint = (sale) => {
+    setReceipt(sale);
+    printTimer.current = setTimeout(() => window.print(), 400);
+  };
+
+  const toggleVoid = (id) => {
+    persistSales(sales.map((s) => (s.id === id ? { ...s, voided: !s.voided } : s)));
+    setConfirmDel(null);
+  };
+
+  // ---------- monthly ----------
+  const months = [...new Set(sales.map((s) => monthKey(s.date)))].sort().reverse();
+  const [selMonth, setSelMonth] = useState(null);
+  const curMonth = selMonth || months[0] || monthKey(todayISO());
+  const monthSales = sales.filter((s) => monthKey(s.date) === curMonth && !s.voided);
+  const monthTotal = monthSales.reduce((a, s) => a + s.total, 0);
+  const menuBreakdown = {};
+  monthSales.forEach((s) =>
+    s.items.forEach((it) => {
+      if (!menuBreakdown[it.name]) menuBreakdown[it.name] = { qty: 0, amt: 0 };
+      menuBreakdown[it.name].qty += it.qty;
+      menuBreakdown[it.name].amt += it.price * it.qty;
+    })
+  );
+
+  const exportCSV = () => {
+    const rows = [["領収書No", "日時", "カルテID", "メモ", "内容", "数量", "単価", "小計", "取消"]];
+    sales
+      .filter((s) => monthKey(s.date) === curMonth)
+      .forEach((s) =>
+        s.items.forEach((it) =>
+          rows.push([
+            s.receiptNo,
+            fmtDateTime(s.date),
+            s.karteId || "",
+            (s.memo || "").replace(/,/g, "、"),
+            it.name,
+            it.qty,
+            it.price,
+            it.price * it.qty,
+            s.voided ? "取消" : "",
+          ])
+        )
+      );
+    const csv = "\uFEFF" + rows.map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `自費売上_${curMonth}.csv`;
+    a.click();
+  };
+
+  // ---------- settings ----------
+  const [menuDraft, setMenuDraft] = useState({ name: "", price: "" });
+  const addMenu = () => {
+    const p = parseInt(menuDraft.price, 10);
+    if (!menuDraft.name.trim() || !p) return;
+    persistConfig({
+      ...config,
+      menus: [...config.menus, { id: "m" + Date.now(), name: menuDraft.name.trim(), price: p, taxRate: 10 }],
+    });
+    setMenuDraft({ name: "", price: "" });
+  };
+  const removeMenu = (id) =>
+    persistConfig({ ...config, menus: config.menus.filter((m) => m.id !== id) });
+  const toggleTax = (id) =>
+    persistConfig({
+      ...config,
+      menus: config.menus.map((m) =>
+        m.id === id ? { ...m, taxRate: m.taxRate === 10 ? 0 : 10 } : m
+      ),
+    });
+
+  const onLogo = (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(1, 240 / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        persistConfig({ ...config, logo: canvas.toDataURL("image/png") });
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(f);
+  };
+
+  if (!loaded)
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm" style={{ background: "#F5F7F9", color: "#5A6B7E" }}>
+        読み込み中…
+      </div>
+    );
+
+  const NAVY = "#24406B";
+  const VERM = "#C2372E";
+  const INK = "#1B2432";
+
+  return (
+    <div className="min-h-screen pb-24" style={{ background: "#F5F7F9", color: INK, fontFamily: "'Hiragino Sans','Yu Gothic',sans-serif" }}>
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #receipt-print, #receipt-print * { visibility: visible; }
+          #receipt-print { position: absolute; left: 0; top: 0; width: 148mm; }
+          @page { size: A5 portrait; margin: 10mm; }
+        }
+        .num { font-variant-numeric: tabular-nums; }
+      `}</style>
+
+      {/* header */}
+      <div className="app-ui px-4 pt-5 pb-3" style={{ background: NAVY }}>
+        <div className="flex items-baseline justify-between">
+          <div>
+            <div className="text-xs tracking-widest" style={{ color: "#8FA6C8" }}>自費会計</div>
+            <div className="text-lg font-semibold text-white">{config.clinicName}</div>
+          </div>
+          <div className="text-xs num" style={{ color: "#8FA6C8" }}>次No. {String(config.receiptCounter).padStart(5, "0")}</div>
+        </div>
+      </div>
+
+      {/* ============ 会計 ============ */}
+      {tab === "register" && (
+        <div className="app-ui p-4 space-y-4">
+          <div className="grid grid-cols-2 gap-2">
+            {config.menus.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => addToCart(m)}
+                className="rounded-xl bg-white text-left p-3 shadow-sm active:scale-95 transition-transform border"
+                style={{ borderColor: "#D6DEE6" }}
+              >
+                <div className="text-sm font-medium leading-snug">{m.name}</div>
+                <div className="text-base font-semibold num mt-1" style={{ color: NAVY }}>
+                  {yen(m.price)}
+                  {m.taxRate === 0 && <span className="text-xs font-normal ml-1" style={{ color: "#8A97A6" }}>非課税</span>}
+                </div>
+              </button>
+            ))}
+            {config.menus.length === 0 && (
+              <div className="col-span-2 text-sm text-center py-8" style={{ color: "#8A97A6" }}>
+                設定タブからメニューを登録してください
+              </div>
+            )}
+          </div>
+
+          {cart.length > 0 && (
+            <div className="rounded-xl bg-white shadow-sm border p-3 space-y-2" style={{ borderColor: "#D6DEE6" }}>
+              {cart.map((x) => (
+                <div key={x.menuId} className="flex items-center justify-between text-sm">
+                  <div className="flex-1 pr-2">{x.name}</div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => changeQty(x.menuId, -1)} className="w-7 h-7 rounded-full border num" style={{ borderColor: "#D6DEE6" }}>−</button>
+                    <span className="w-5 text-center num">{x.qty}</span>
+                    <button onClick={() => changeQty(x.menuId, 1)} className="w-7 h-7 rounded-full border num" style={{ borderColor: "#D6DEE6" }}>＋</button>
+                    <span className="w-20 text-right num font-medium">{yen(x.price * x.qty)}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="pt-2 flex items-baseline justify-between" style={{ borderTop: `2px solid ${VERM}` }}>
+                <span className="text-xs tracking-widest" style={{ color: "#5A6B7E" }}>合計（税込）</span>
+                <span className="text-2xl font-bold num" style={{ color: VERM }}>{yen(cartTotal)}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <input
+              value={karteId}
+              onChange={(e) => setKarteId(e.target.value)}
+              placeholder="カルテID（領収書には印字されません）"
+              inputMode="numeric"
+              className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm num"
+              style={{ borderColor: "#D6DEE6" }}
+            />
+            <input
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              placeholder="メモ（アプリ内記録のみ・印字されません）"
+              className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm"
+              style={{ borderColor: "#D6DEE6" }}
+            />
+            <input
+              value={proviso}
+              onChange={(e) => setProviso(e.target.value)}
+              placeholder="但し書き"
+              className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm"
+              style={{ borderColor: "#D6DEE6" }}
+            />
+          </div>
+
+          <button
+            onClick={issue}
+            disabled={cart.length === 0}
+            className="w-full rounded-xl py-3.5 text-white font-semibold text-base shadow disabled:opacity-30 active:scale-95 transition-transform"
+            style={{ background: VERM }}
+          >
+            領収書を発行・印刷
+          </button>
+        </div>
+      )}
+
+      {/* ============ 履歴 ============ */}
+      {tab === "history" && (
+        <div className="app-ui p-4 space-y-2">
+          <input
+            value={histQuery}
+            onChange={(e) => setHistQuery(e.target.value)}
+            placeholder="カルテID・メモで検索"
+            className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm"
+            style={{ borderColor: "#D6DEE6" }}
+          />
+          {sales.length === 0 && (
+            <div className="text-sm text-center py-10" style={{ color: "#8A97A6" }}>まだ会計がありません</div>
+          )}
+          {sales
+            .filter((s) => {
+              const q = histQuery.trim().toLowerCase();
+              if (!q) return true;
+              return (
+                (s.karteId || "").toLowerCase().includes(q) ||
+                (s.memo || "").toLowerCase().includes(q)
+              );
+            })
+            .map((s) => (
+            <div key={s.id} className="rounded-xl bg-white border shadow-sm p-3" style={{ borderColor: "#D6DEE6", opacity: s.voided ? 0.5 : 1 }}>
+              <div className="flex items-baseline justify-between">
+                <div className="text-xs num" style={{ color: "#5A6B7E" }}>
+                  No.{String(s.receiptNo).padStart(5, "0")}　{fmtDateTime(s.date)}
+                </div>
+                <div className={`text-base font-semibold num ${s.voided ? "line-through" : ""}`} style={{ color: NAVY }}>
+                  {yen(s.total)}
+                </div>
+              </div>
+              <div className="text-sm mt-1">
+                {s.karteId && (
+                  <span className="mr-2 text-xs num rounded px-1.5 py-0.5" style={{ background: "#EDF1F6", color: NAVY }}>
+                    ID {s.karteId}
+                  </span>
+                )}
+                {s.patient && <span className="mr-2 font-medium">{s.patient} 様</span>}
+                <span style={{ color: "#5A6B7E" }}>{s.items.map((i) => `${i.name}×${i.qty}`).join("、")}</span>
+              </div>
+              {s.memo && (
+                <div className="text-xs mt-1" style={{ color: "#8A97A6" }}>📝 {s.memo}</div>
+              )}
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => reprint(s)} className="flex-1 rounded-lg border py-1.5 text-sm" style={{ borderColor: NAVY, color: NAVY }}>
+                  再印刷
+                </button>
+                {confirmDel === s.id ? (
+                  <button onClick={() => toggleVoid(s.id)} className="flex-1 rounded-lg py-1.5 text-sm text-white" style={{ background: VERM }}>
+                    {s.voided ? "取消を戻す：確定" : "取消：確定"}
+                  </button>
+                ) : (
+                  <button onClick={() => setConfirmDel(s.id)} className="flex-1 rounded-lg border py-1.5 text-sm" style={{ borderColor: "#D6DEE6", color: "#5A6B7E" }}>
+                    {s.voided ? "取消を戻す" : "取消"}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ============ 月次 ============ */}
+      {tab === "monthly" && (
+        <div className="app-ui p-4 space-y-4">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {(months.length ? months : [curMonth]).map((m) => (
+              <button
+                key={m}
+                onClick={() => setSelMonth(m)}
+                className="shrink-0 rounded-full px-4 py-1.5 text-sm border num"
+                style={
+                  m === curMonth
+                    ? { background: NAVY, color: "white", borderColor: NAVY }
+                    : { background: "white", color: NAVY, borderColor: "#D6DEE6" }
+                }
+              >
+                {m.replace("-", "年")}月
+              </button>
+            ))}
+          </div>
+
+          <div className="rounded-xl bg-white border shadow-sm p-4" style={{ borderColor: "#D6DEE6" }}>
+            <div className="text-xs tracking-widest" style={{ color: "#5A6B7E" }}>月間売上（取消除く）</div>
+            <div className="text-3xl font-bold num mt-1" style={{ color: VERM }}>{yen(monthTotal)}</div>
+            <div className="text-xs num mt-1" style={{ color: "#5A6B7E" }}>{monthSales.length} 件</div>
+          </div>
+
+          <div className="rounded-xl bg-white border shadow-sm p-4 space-y-2" style={{ borderColor: "#D6DEE6" }}>
+            <div className="text-xs tracking-widest mb-1" style={{ color: "#5A6B7E" }}>メニュー別内訳</div>
+            {Object.keys(menuBreakdown).length === 0 && (
+              <div className="text-sm" style={{ color: "#8A97A6" }}>データなし</div>
+            )}
+            {Object.entries(menuBreakdown)
+              .sort((a, b) => b[1].amt - a[1].amt)
+              .map(([name, v]) => (
+                <div key={name} className="flex justify-between text-sm">
+                  <span>{name} <span className="num" style={{ color: "#8A97A6" }}>×{v.qty}</span></span>
+                  <span className="num font-medium">{yen(v.amt)}</span>
+                </div>
+              ))}
+          </div>
+
+          <button onClick={exportCSV} className="w-full rounded-xl border py-3 text-sm font-medium bg-white" style={{ borderColor: NAVY, color: NAVY }}>
+            この月をCSVで書き出す
+          </button>
+        </div>
+      )}
+
+      {/* ============ 設定 ============ */}
+      {tab === "settings" && (
+        <div className="app-ui p-4 space-y-5">
+          <div className="space-y-2">
+            <div className="text-xs tracking-widest" style={{ color: "#5A6B7E" }}>クリニック情報（領収書に印字）</div>
+            {[
+              ["clinicName", "クリニック名"],
+              ["address", "住所"],
+              ["tel", "電話番号"],
+              ["invoiceNo", "インボイス登録番号（T＋13桁）"],
+            ].map(([k, label]) => (
+              <input
+                key={k}
+                value={config[k] || ""}
+                onChange={(e) => persistConfig({ ...config, [k]: e.target.value })}
+                placeholder={label}
+                className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm"
+                style={{ borderColor: "#D6DEE6" }}
+              />
+            ))}
+            <div className="flex items-center gap-3">
+              {config.logo && <img src={config.logo} alt="logo" className="h-10 rounded" />}
+              <label className="flex-1 rounded-xl border bg-white px-3 py-2.5 text-sm text-center" style={{ borderColor: "#D6DEE6", color: NAVY }}>
+                {config.logo ? "ロゴを変更" : "ロゴ画像を選択"}
+                <input type="file" accept="image/*" onChange={onLogo} className="hidden" />
+              </label>
+              {config.logo && (
+                <button onClick={() => persistConfig({ ...config, logo: null })} className="text-xs" style={{ color: VERM }}>削除</button>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs tracking-widest" style={{ color: "#5A6B7E" }}>メニュー（税込価格・タップで税区分切替）</div>
+            {config.menus.map((m) => (
+              <div key={m.id} className="flex items-center gap-2 rounded-xl bg-white border px-3 py-2" style={{ borderColor: "#D6DEE6" }}>
+                <button onClick={() => toggleTax(m.id)} className="text-xs rounded-full px-2 py-0.5 border shrink-0" style={{ borderColor: "#D6DEE6", color: m.taxRate === 10 ? NAVY : "#8A97A6" }}>
+                  {m.taxRate === 10 ? "10%" : "非課税"}
+                </button>
+                <div className="flex-1 text-sm">{m.name}</div>
+                <div className="text-sm num font-medium">{yen(m.price)}</div>
+                <button onClick={() => removeMenu(m.id)} className="text-xs ml-1" style={{ color: VERM }}>削除</button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <input
+                value={menuDraft.name}
+                onChange={(e) => setMenuDraft({ ...menuDraft, name: e.target.value })}
+                placeholder="メニュー名"
+                className="flex-1 rounded-xl border bg-white px-3 py-2.5 text-sm"
+                style={{ borderColor: "#D6DEE6" }}
+              />
+              <input
+                value={menuDraft.price}
+                onChange={(e) => setMenuDraft({ ...menuDraft, price: e.target.value.replace(/[^0-9]/g, "") })}
+                placeholder="税込価格"
+                inputMode="numeric"
+                className="w-24 rounded-xl border bg-white px-3 py-2.5 text-sm num"
+                style={{ borderColor: "#D6DEE6" }}
+              />
+              <button onClick={addMenu} className="rounded-xl px-4 text-sm text-white" style={{ background: NAVY }}>追加</button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs tracking-widest" style={{ color: "#5A6B7E" }}>領収書番号</div>
+            <input
+              value={config.receiptCounter}
+              onChange={(e) =>
+                persistConfig({ ...config, receiptCounter: parseInt(e.target.value.replace(/[^0-9]/g, ""), 10) || 1 })
+              }
+              inputMode="numeric"
+              className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm num"
+              style={{ borderColor: "#D6DEE6" }}
+            />
+            <div className="text-xs" style={{ color: "#8A97A6" }}>次に発行される領収書の番号です。</div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ bottom nav ============ */}
+      <div className="app-ui fixed bottom-0 left-0 right-0 border-t bg-white flex" style={{ borderColor: "#D6DEE6" }}>
+        {[
+          ["register", "会計"],
+          ["history", "履歴"],
+          ["monthly", "月次"],
+          ["settings", "設定"],
+        ].map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            className="flex-1 py-3.5 text-sm font-medium"
+            style={{
+              color: tab === k ? VERM : "#8A97A6",
+              borderTop: tab === k ? `2px solid ${VERM}` : "2px solid transparent",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ============ A5 領収証（印刷専用） ============ */}
+      {receipt && (
+        <div id="receipt-print" style={{ display: "none" }} className="print-block">
+          <style>{`@media print { #receipt-print { display: block !important; } }`}</style>
+          <div style={{ border: `3px double ${VERM}`, padding: "8mm", fontFamily: "'Hiragino Mincho ProN','Yu Mincho',serif", color: INK, position: "relative", minHeight: "170mm", boxSizing: "border-box" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9pt" }}>
+              <span>No. {String(receipt.receiptNo).padStart(5, "0")}</span>
+              <span>{fmtDate(receipt.date)}</span>
+            </div>
+
+            <div style={{ textAlign: "center", fontSize: "20pt", letterSpacing: "1.2em", marginTop: "4mm", paddingLeft: "1.2em" }}>領収証</div>
+            <div style={{ borderBottom: `1.5pt solid ${INK}`, width: "40mm", margin: "2mm auto 8mm" }} />
+
+            <div style={{ fontSize: "13pt", borderBottom: `1pt solid ${INK}`, paddingBottom: "1mm", marginBottom: "8mm" }}>
+              {receipt.patient ? `　${receipt.patient}` : "　"}<span style={{ float: "right", fontSize: "10pt" }}>様</span>
+            </div>
+
+            <div style={{ border: `1.5pt solid ${INK}`, padding: "4mm 6mm", display: "flex", alignItems: "baseline", justifyContent: "space-between", background: "#FBFAF7" }}>
+              <span style={{ fontSize: "10pt" }}>金額</span>
+              <span style={{ fontSize: "20pt", fontWeight: "bold" }}>{yen(receipt.total)}−</span>
+            </div>
+
+            <div style={{ fontSize: "10pt", marginTop: "6mm" }}>
+              但し　{receipt.proviso}
+              <div style={{ marginTop: "2mm" }}>上記正に領収いたしました。</div>
+            </div>
+
+            <div style={{ fontSize: "8pt", marginTop: "4mm", color: "#444" }}>
+              {receipt.taxable > 0 && <div>10%対象（税込）：{yen(receipt.taxable)}　うち消費税額：{yen(receipt.taxIncluded)}</div>}
+              {receipt.exempt > 0 && <div>非課税対象：{yen(receipt.exempt)}</div>}
+              <div style={{ marginTop: "1mm" }}>内容：{receipt.items.map((i) => `${i.name}×${i.qty}`).join("、")}</div>
+            </div>
+
+            <div style={{ position: "absolute", bottom: "8mm", left: "8mm", right: "8mm", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+              <div style={{ fontSize: "9pt", lineHeight: 1.7 }}>
+                {config.logo && <img src={config.logo} alt="" style={{ height: "10mm", marginBottom: "1mm" }} />}
+                <div style={{ fontSize: "11pt", fontWeight: "bold" }}>{config.clinicName}</div>
+                <div>{config.address}</div>
+                <div>TEL {config.tel}</div>
+                <div>登録番号 {config.invoiceNo}</div>
+              </div>
+              <div style={{ width: "16mm", height: "16mm", border: `1pt dashed ${VERM}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8pt", color: VERM }}>
+                印
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`@media print { .app-ui { display: none !important; } }`}</style>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<JihiRegister />);
+</script>
+</body>
+</html>
