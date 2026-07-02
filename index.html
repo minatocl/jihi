@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="自費会計">
 <title>自費会計レジ</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -76,8 +75,9 @@ function JihiRegister() {
   const [cart, setCart] = useState([]); // {menuId,name,price,taxRate,qty}
   const [karteId, setKarteId] = useState("");
   const [memo, setMemo] = useState("");
+  const [printItems, setPrintItems] = useState(false);
   const [histQuery, setHistQuery] = useState("");
-  const [proviso, setProviso] = useState("自費診療代として");
+  const [proviso, setProviso] = useState("自由診療として");
   const [receipt, setReceipt] = useState(null); // sale being printed
   const [confirmDel, setConfirmDel] = useState(null);
   const printTimer = useRef(null);
@@ -135,12 +135,13 @@ function JihiRegister() {
       patient: "",
       memo: memo.trim(),
       karteId: karteId.trim(),
-      proviso: proviso.trim() || "自費診療代として",
+      proviso: proviso.trim() || "自由診療として",
       items: cart,
       total: cartTotal,
       taxable,
       exempt,
       taxIncluded,
+      showItems: printItems,
       voided: false,
     };
     persistSales([sale, ...sales]);
@@ -149,7 +150,8 @@ function JihiRegister() {
     setCart([]);
     setKarteId("");
     setMemo("");
-    setProviso("自費診療代として");
+    setPrintItems(false);
+    setProviso("自由診療として");
     printTimer.current = setTimeout(() => window.print(), 400);
   };
 
@@ -260,9 +262,10 @@ function JihiRegister() {
     <div className="min-h-screen pb-24" style={{ background: "#F5F7F9", color: INK, fontFamily: "'Hiragino Sans','Yu Gothic',sans-serif" }}>
       <style>{`
         @media print {
+          html, body { height: auto !important; margin: 0 !important; }
           body * { visibility: hidden; }
           #receipt-print, #receipt-print * { visibility: visible; }
-          #receipt-print { position: absolute; left: 0; top: 0; width: 148mm; }
+          #receipt-print { position: absolute; left: 0; top: 0; width: 128mm; height: 185mm; overflow: hidden; page-break-after: avoid; page-break-inside: avoid; }
           @page { size: A5 portrait; margin: 10mm; }
         }
         .num { font-variant-numeric: tabular-nums; }
@@ -347,6 +350,16 @@ function JihiRegister() {
               className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm"
               style={{ borderColor: "#D6DEE6" }}
             />
+            <button
+              onClick={() => setPrintItems(!printItems)}
+              className="w-full rounded-xl border bg-white px-3 py-2.5 text-sm flex items-center justify-between"
+              style={{ borderColor: "#D6DEE6", color: printItems ? NAVY : "#8A97A6" }}
+            >
+              <span>内訳（メニュー名）を領収書に印字</span>
+              <span className="text-xs rounded-full px-2 py-0.5 border" style={{ borderColor: printItems ? NAVY : "#D6DEE6", background: printItems ? NAVY : "white", color: printItems ? "white" : "#8A97A6" }}>
+                {printItems ? "ON" : "OFF"}
+              </span>
+            </button>
           </div>
 
           <button
@@ -576,7 +589,7 @@ function JihiRegister() {
       {receipt && (
         <div id="receipt-print" style={{ display: "none" }} className="print-block">
           <style>{`@media print { #receipt-print { display: block !important; } }`}</style>
-          <div style={{ border: `3px double ${VERM}`, padding: "8mm", fontFamily: "'Hiragino Mincho ProN','Yu Mincho',serif", color: INK, position: "relative", minHeight: "170mm", boxSizing: "border-box" }}>
+          <div style={{ border: `3px double ${VERM}`, padding: "8mm", fontFamily: "'Hiragino Mincho ProN','Yu Mincho',serif", color: INK, position: "relative", height: "180mm", boxSizing: "border-box", overflow: "hidden" }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9pt" }}>
               <span>No. {String(receipt.receiptNo).padStart(5, "0")}</span>
               <span>{fmtDate(receipt.date)}</span>
@@ -602,7 +615,9 @@ function JihiRegister() {
             <div style={{ fontSize: "8pt", marginTop: "4mm", color: "#444" }}>
               {receipt.taxable > 0 && <div>10%対象（税込）：{yen(receipt.taxable)}　うち消費税額：{yen(receipt.taxIncluded)}</div>}
               {receipt.exempt > 0 && <div>非課税対象：{yen(receipt.exempt)}</div>}
-              <div style={{ marginTop: "1mm" }}>内容：{receipt.items.map((i) => `${i.name}×${i.qty}`).join("、")}</div>
+              {receipt.showItems && (
+                <div style={{ marginTop: "1mm" }}>内容：{receipt.items.map((i) => `${i.name}×${i.qty}`).join("、")}</div>
+              )}
             </div>
 
             <div style={{ position: "absolute", bottom: "8mm", left: "8mm", right: "8mm", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
