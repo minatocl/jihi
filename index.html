@@ -259,14 +259,15 @@ function JihiRegister() {
   const INK = "#1B2432";
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: "#F5F7F9", color: INK, fontFamily: "'Hiragino Sans','Yu Gothic',sans-serif" }}>
+    <div className="app-shell min-h-screen pb-24" style={{ background: "#F5F7F9", color: INK, fontFamily: "'Hiragino Sans','Yu Gothic',sans-serif" }}>
       <style>{`
         @media print {
           html, body { height: auto !important; margin: 0 !important; }
           body * { visibility: hidden; }
           #receipt-print, #receipt-print * { visibility: visible; }
-          #receipt-print { position: absolute; left: 0; top: 0; width: 128mm; height: 185mm; overflow: hidden; page-break-after: avoid; page-break-inside: avoid; }
-          @page { size: A5 portrait; margin: 10mm; }
+          #receipt-print { position: absolute; left: 0; top: 0; width: 148mm; height: 208mm; padding: 10mm; box-sizing: border-box; overflow: hidden; page-break-after: avoid; page-break-inside: avoid; }
+          @page { size: A5 portrait; margin: 0; }
+          .app-shell { min-height: 0 !important; height: auto !important; padding: 0 !important; }
         }
         .num { font-variant-numeric: tabular-nums; }
       `}</style>
@@ -590,10 +591,7 @@ function JihiRegister() {
         <div id="receipt-print" style={{ display: "none" }} className="print-block">
           <style>{`@media print { #receipt-print { display: block !important; } }`}</style>
           <div style={{ border: `3px double ${VERM}`, padding: "8mm", fontFamily: "'Hiragino Mincho ProN','Yu Mincho',serif", color: INK, position: "relative", height: "180mm", boxSizing: "border-box", overflow: "hidden" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9pt" }}>
-              <span>No. {String(receipt.receiptNo).padStart(5, "0")}</span>
-              <span>{fmtDate(receipt.date)}</span>
-            </div>
+            <div style={{ textAlign: "right", fontSize: "9pt" }}>{fmtDate(receipt.date)}</div>
 
             <div style={{ textAlign: "center", fontSize: "20pt", letterSpacing: "1.2em", marginTop: "4mm", paddingLeft: "1.2em" }}>領収証</div>
             <div style={{ borderBottom: `1.5pt solid ${INK}`, width: "40mm", margin: "2mm auto 8mm" }} />
@@ -627,9 +625,6 @@ function JihiRegister() {
                 <div>{config.address}</div>
                 <div>TEL {config.tel}</div>
                 <div>登録番号 {config.invoiceNo}</div>
-              </div>
-              <div style={{ width: "16mm", height: "16mm", border: `1pt dashed ${VERM}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8pt", color: VERM }}>
-                印
               </div>
             </div>
           </div>
