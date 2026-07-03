@@ -184,6 +184,10 @@ function JihiRegister() {
       doc.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 148, 208);
       const blob = doc.output("blob");
       setPdf({ blob, url: URL.createObjectURL(blob) });
+      const file = new File([blob], "ryoshusho.pdf", { type: "application/pdf" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file] }); } catch (e) { /* user closed or activation expired -> banner stays */ }
+      }
     } catch (e) {
       console.error(e);
       if (el) el.style.display = "none";
