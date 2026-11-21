@@ -1,0 +1,22 @@
+{
+  "name": "自費会計",
+  "short_name": "自費会計",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#131518",
+  "theme_color": "#131518",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon-180.png?v=2",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png?v=2",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
