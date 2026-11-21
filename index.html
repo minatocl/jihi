@@ -14,7 +14,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <title>自費会計</title>
 <style>
-:root{--fj:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Segoe UI","Yu Gothic UI","Noto Sans JP",Meiryo,sans-serif;--fn:var(--fj);--nw:700;--nls:0em;
+:root{--pill-w:84px;--pill-h:164px;--fj:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Segoe UI","Yu Gothic UI","Noto Sans JP",Meiryo,sans-serif;--fn:var(--fj);--nw:700;--nls:0em;
   --bg:#131518;--panel:#1c1f23;--raise:#262a2f;--line:#31363c;--line2:#23272c;--text:#eef0f2;--sub:#a3aab3;--mute:#737b85;--acc:#6ab7f2;--acc-soft:rgba(106,183,242,.11);--acc-ink:#0b2338;--warn:#f2b757;--ng:#f0776b}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
@@ -38,38 +38,46 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.75;strok
 .tab.on{color:var(--acc)}
 
 /* ---------- 会計 ---------- */
-.top{display:flex;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 10px 4px 16px}
+/* 上の段（tz）。閉じたスマホの右上には、時刻と電波の表示（幅54・高さ137ほど）がかぶさる。
+   その端末では html に pill が付き、上の段の右側を空けて、下の一覧はその表示より下から始める */
+/* 列の幅は minmax(0,1fr) にする。auto のままだと、入力欄がもともと持っている最小の幅（20文字ぶん）に引っぱられて段全体が右へはみ出し、
+   空けたはずの右上に入り込む（2026-11-21、院長の実機の Safari で会計の画面だけ重なった原因） */
+.tz{flex:none;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-content:start;padding:calc(10px + env(safe-area-inset-top)) 16px 8px}
+.pill .tz{padding-right:calc(16px + var(--pill-w));min-height:var(--pill-h)}
+.top{display:flex;align-items:center;gap:8px}
 .top h1{display:none;font-size:22px;font-weight:700;letter-spacing:.04em}
 .kid{flex:1;min-width:0;display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;border-radius:14px;background:var(--panel);border:1px solid var(--line)}
 .kid:focus-within{border-color:var(--acc)}
 .kid span{flex:none;font-size:12px;color:var(--sub)}
-.kid input{flex:1;min-width:0;height:100%;background:none;border:0;outline:0;font-family:var(--fn);font-weight:var(--nw);font-size:21px;letter-spacing:.05em}
+.kid input{flex:1;width:0;min-width:0;height:100%;background:none;border:0;outline:0;font-family:var(--fn);font-weight:var(--nw);font-size:21px;letter-spacing:.05em}
 .kid input::placeholder{font:400 14px var(--fj);letter-spacing:0;color:var(--mute)}
-.iconbtn{flex:none;width:46px;height:46px;display:grid;place-items:center;color:var(--sub);border-radius:12px}
 .search{display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;border-radius:12px;background:var(--panel);border:1px solid var(--line2);color:var(--mute)}
 .search:focus-within{border-color:var(--acc)}
 .search svg{width:18px;height:18px}
-.search input{flex:1;min-width:0;height:100%;background:none;border:0;outline:0;font-size:16px;color:var(--text);-webkit-appearance:none;appearance:none}
+.search input{flex:1;width:0;min-width:0;height:100%;background:none;border:0;outline:0;font-size:16px;color:var(--text);-webkit-appearance:none;appearance:none}
 .search input::placeholder{color:var(--mute);font-size:14px}
 .search input::-webkit-search-cancel-button{-webkit-appearance:none}
+.search .clr{flex:none;width:28px;height:28px;border-radius:14px;background:var(--raise);color:var(--sub);display:grid;place-items:center;position:relative}
+.search .clr svg{width:14px;height:14px}
+.search .clr::after{content:"";position:absolute;top:-8px;right:-8px;bottom:-8px;left:-8px}
 .search.wide{display:none}
 .textbtn{flex:none;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--line);color:var(--sub);font-size:13px}
-.catrow{flex:none;min-height:8px}
-.cats{display:flex;gap:8px;overflow-x:auto;padding:8px 16px 4px;scrollbar-width:none}
+.cats{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
 .cats::-webkit-scrollbar{display:none}
 .cats:empty{display:none}
 .chip{flex:none;height:36px;padding:0 14px;border-radius:18px;background:var(--panel);border:1px solid var(--line);color:var(--sub);font-size:13px;font-weight:600;white-space:nowrap}
 .chip.on{background:var(--text);border-color:var(--text);color:var(--bg)}
-.searchrow{display:flex;gap:8px;padding:8px 16px 4px}
-.searchrow .search{flex:1}
-.grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:max-content;gap:10px;padding:10px 16px 16px;overflow-y:auto;align-content:start;-webkit-overflow-scrolling:touch}
-.tile{position:relative;padding:11px 12px 10px;border-radius:14px;background:var(--panel);border:1px solid var(--line2);display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;align-content:space-between;gap:6px 8px;cursor:pointer;transition:transform .08s;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.info{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:2px 12px;min-height:36px;font-size:12px;color:var(--sub);white-space:nowrap}
+.info b{font-size:15px;color:var(--text);margin:0 2px 0 5px}
+/* 品目のタイル。幅が430ほどあれば横3列、それより狭いスマホでは2列 */
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));grid-auto-rows:max-content;gap:8px;padding:8px 16px 14px;overflow-y:auto;align-content:start;-webkit-overflow-scrolling:touch}
+.tile{position:relative;padding:9px 10px 8px;border-radius:12px;background:var(--panel);border:1px solid var(--line2);display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;align-content:space-between;gap:4px 6px;cursor:pointer;transition:transform .08s;-webkit-user-select:none;user-select:none;touch-action:manipulation}
 .tile:active{transform:scale(.97)}
-.tile .nm{grid-column:1/3;font-size:15px;font-weight:600;line-height:1.3;min-height:2.6em;overflow-wrap:anywhere;padding-right:16px}
-.tile .q{position:absolute;top:-8px;right:-6px;min-width:28px;height:28px;padding:0 8px;border-radius:14px;background:var(--acc);color:var(--acc-ink);box-shadow:0 0 0 3px var(--bg);display:none;place-items:center;font-size:17px;line-height:1}
-.tile .pr{grid-column:2;grid-row:2;justify-self:end;align-self:end;font-size:19px;line-height:1.1}
-.tile .pr small{font:400 11px var(--fj);letter-spacing:0;color:var(--mute);margin-right:6px}
-.tile .minus{grid-column:1;grid-row:2;justify-self:start;align-self:end;width:30px;height:30px;border-radius:15px;border:1px solid rgba(106,183,242,.45);color:var(--acc);display:grid;visibility:hidden;place-items:center;font-size:17px;line-height:1;position:relative}
+.tile .nm{grid-column:1/3;font-size:13.5px;font-weight:600;line-height:1.3;min-height:2.6em;overflow-wrap:anywhere;padding-right:12px}
+.tile .nm small{font:400 10px var(--fj);color:var(--mute);margin-left:4px;white-space:nowrap}
+.tile .q{position:absolute;top:-7px;right:-5px;min-width:24px;height:24px;padding:0 6px;border-radius:12px;background:var(--acc);color:var(--acc-ink);box-shadow:0 0 0 2.5px var(--bg);display:none;place-items:center;font-size:15px;line-height:1}
+.tile .pr{grid-column:2;grid-row:2;justify-self:end;align-self:end;font-size:16px;line-height:1.1}
+.tile .minus{grid-column:1;grid-row:2;justify-self:start;align-self:end;width:26px;height:26px;border-radius:13px;border:1px solid rgba(106,183,242,.45);color:var(--acc);display:grid;visibility:hidden;place-items:center;font-size:15px;line-height:1;position:relative}
 .tile .minus::after{content:"";position:absolute;top:-8px;right:-8px;bottom:-8px;left:-8px}
 .tile.on{border-color:var(--acc);background:linear-gradient(var(--acc-soft),var(--acc-soft)),var(--panel)}
 .tile.on .q{display:grid}
@@ -77,13 +85,15 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.75;strok
 .blank{grid-column:1/-1;color:var(--mute);font-size:13px;text-align:center;padding:36px 8px;line-height:1.9}
 .blank button{display:inline-block;margin-top:10px;height:40px;padding:0 16px;border-radius:12px;border:1px solid var(--line);color:var(--text);font-size:14px}
 
-.bar{flex:none;background:var(--raise);border-top:1px solid var(--line);padding:8px 16px 12px}
-.sum{display:flex;justify-content:space-between;align-items:baseline;width:100%;padding:4px 0 10px;text-align:left}
-.sum .cnt{color:var(--sub);font-size:13px;display:flex;align-items:baseline;gap:2px}
-.sum .cnt b{font-size:20px;color:var(--text);margin-right:1px}
-.sum .cnt i{font-style:normal;color:var(--acc);margin-left:10px;display:inline-flex;align-items:center;gap:2px}
-.sum .cnt i svg{width:16px;height:16px;transform:rotate(180deg) translateY(-2px)}
-.sum .tot{font-size:36px;line-height:1}
+/* 下の帯は1段（左に点数と合計、右にボタン）。背の低い画面でも品目が多く見えるように */
+.bar{flex:none;display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;background:var(--raise);border-top:1px solid var(--line);padding:8px 16px 10px}
+.sum{display:grid;gap:1px;text-align:left;min-width:0}
+.sum .cnt{color:var(--sub);font-size:12px;display:flex;align-items:baseline;gap:2px;white-space:nowrap}
+.sum .cnt b{font-size:15px;color:var(--text);margin-right:1px}
+.sum .cnt i{font-style:normal;color:var(--acc);margin-left:8px;display:inline-flex;align-items:center;gap:2px}
+.sum .cnt i svg{width:14px;height:14px;transform:rotate(180deg) translateY(-2px)}
+.sum .tot{font-size:28px;line-height:1.1}
+.bar .go{width:auto;min-width:156px;height:52px;padding:0 20px}
 .go{width:100%;height:54px;border-radius:14px;background:var(--acc);color:var(--acc-ink);font-size:16px;font-weight:700;letter-spacing:.05em}
 .go:disabled{opacity:.3}
 
@@ -92,6 +102,8 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.75;strok
 body.sheet .pane{transform:none;visibility:visible;transition:transform .25s cubic-bezier(.2,.8,.2,1),visibility 0s}
 body.sheet .scrim{opacity:1;pointer-events:auto}
 .pane.kb{top:env(safe-area-inset-top);bottom:auto;max-height:54vh;max-height:54dvh;border-radius:0 0 20px 20px;border-top:0;border-bottom:1px solid var(--line)}
+.pill .pane{max-height:calc(100vh - var(--pill-h) - 6px);max-height:calc(100dvh - var(--pill-h) - 6px)}
+.pill .pane.kb{top:0;max-height:54vh;max-height:54dvh;padding-right:calc(16px + var(--pill-w))}
 .ph{flex:none;display:flex;align-items:center;gap:12px;padding:10px 0 8px}
 .ph h2{font-size:17px;font-weight:700;flex:1}
 .ph .no{font-size:12px;color:var(--mute)}
@@ -124,6 +136,7 @@ body.sheet .scrim{opacity:1;pointer-events:auto}
 .fld input{height:46px;padding:0 12px;border-radius:12px;background:var(--bg);border:1px solid var(--line);outline:0;font-size:16px;width:100%}
 .fld input:focus{border-color:var(--acc)}
 .sw{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:46px;width:100%;text-align:left;font-size:13px;color:var(--sub)}
+.sw small{display:block;font-size:11px;color:var(--mute);margin-top:2px}
 .sw i{flex:none;width:46px;height:28px;border-radius:14px;background:var(--raise);border:1px solid var(--line);position:relative;transition:background .15s}
 .sw i::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--sub);transition:transform .15s,background .15s}
 .sw[aria-checked=true] i{background:var(--acc);border-color:var(--acc)}
@@ -131,7 +144,7 @@ body.sheet .scrim{opacity:1;pointer-events:auto}
 .pane .go{margin-top:10px;flex:none}
 
 /* ---------- 履歴・月次・設定に共通 ---------- */
-.vh{flex:none;display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:calc(14px + env(safe-area-inset-top)) 16px 8px}
+.vh{display:flex;align-items:baseline;justify-content:space-between;gap:12px;min-height:32px}
 .vh h1{font-size:20px;font-weight:700;letter-spacing:.04em}
 .vscroll{flex:1;min-height:0;overflow-y:auto;padding:4px 16px 24px;-webkit-overflow-scrolling:touch}
 .card{background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:14px}
@@ -146,9 +159,8 @@ label.btn{display:grid;place-items:center;cursor:pointer}
 .vhid{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
 
 /* 履歴 */
-.today{font-size:12px;color:var(--sub)}
-.today b{font-size:17px;color:var(--text);margin:0 2px 0 6px}
-.search.block{margin-bottom:6px}
+.today{font-size:12px;color:var(--sub);min-height:26px;white-space:nowrap}
+.today b{font-size:19px;color:var(--text);margin:0 2px 0 6px}
 .day{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:600;color:var(--sub);margin:18px 2px 8px}
 .day span{font-size:12px;font-weight:400;color:var(--mute)}
 .day span b{color:var(--sub);font-size:14px;margin-left:6px}
@@ -170,7 +182,7 @@ label.btn{display:grid;place-items:center;cursor:pointer}
 .more{display:block;margin:6px auto 0}
 
 /* 月次 */
-.months{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+.months{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
 .months::-webkit-scrollbar{display:none}
 .mbody{display:grid;gap:12px}
 .msum .lab{font-size:12px;color:var(--sub)}
@@ -211,6 +223,9 @@ label.btn{display:grid;place-items:center;cursor:pointer}
 
 /* ---------- 小窓・お知らせ ---------- */
 .dlgwrap{position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:rgba(0,0,0,.6);display:grid;justify-items:center;align-items:start;padding:calc(9vh + env(safe-area-inset-top)) 16px 16px;overflow-y:auto}
+.pill .dlgwrap{padding-top:calc(var(--pill-h) + 6px)}
+.dlgwrap.kb{padding-top:10px}
+.pill .dlgwrap.kb{padding-top:10px;padding-right:calc(16px + var(--pill-w))}
 .dlg{width:100%;max-width:420px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px}
 .dlg h2{font-size:17px;font-weight:700;line-height:1.5}
 .dlg p{font-size:13px;color:var(--sub);margin-top:6px;line-height:1.7}
@@ -243,22 +258,27 @@ label.btn{display:grid;place-items:center;cursor:pointer}
   .tab{padding:10px 0 8px;border-radius:12px}
   .tab.on{background:var(--acc-soft)}
   .view{grid-column:2;grid-row:1}
-  .v-register{display:grid;grid-template-columns:1fr 352px;grid-template-rows:auto auto 1fr}
-  .top{grid-column:1;grid-row:1;justify-content:space-between;padding:calc(18px + env(safe-area-inset-top)) 24px 6px}
+  .v-register{display:grid;grid-template-columns:1fr 352px;grid-template-rows:auto 1fr}
+  .tz{padding:calc(20px + env(safe-area-inset-top)) 28px 10px}
+  .v-register .tz{grid-column:1;grid-row:1;padding:calc(18px + env(safe-area-inset-top)) 24px 6px}
+  .top{justify-content:space-between}
   .top h1{display:block}
-  .top .kid,.find,.searchrow{display:none!important}
+  .top .kid,.search.narrow,.info{display:none!important}
   .search.wide{display:flex;width:240px}
-  .catrow{grid-column:1;grid-row:2}
-  .cats{padding:8px 24px 6px}
-  .cats[hidden]{display:flex!important}
-  .grid{grid-column:1;grid-row:3;grid-template-columns:repeat(3,1fr);gap:12px;padding:10px 24px 24px}
+  .grid{grid-column:1;grid-row:2;grid-template-columns:repeat(3,1fr);gap:12px;padding:10px 24px 24px}
+  .tile{padding:11px 12px 10px;border-radius:14px;gap:6px 8px}
+  .tile .nm{font-size:15px;padding-right:16px}
+  .tile .q{top:-8px;right:-6px;min-width:28px;height:28px;padding:0 8px;border-radius:14px;font-size:17px;box-shadow:0 0 0 3px var(--bg)}
+  .tile .pr{font-size:19px}
+  .tile .minus{width:30px;height:30px;border-radius:15px;font-size:17px}
   .bar,.scrim,.ph .x{display:none}
-  .pane,.pane.kb{position:static;transform:none;visibility:visible;grid-column:2;grid-row:1/4;max-height:none;border-radius:0;border-top:0;border-bottom:0;border-left:1px solid var(--line2);padding:calc(12px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) 20px 20px}
+  .pane,.pane.kb{position:static;transform:none;visibility:visible;grid-column:2;grid-row:1/3;max-height:none;border-radius:0;border-top:0;border-bottom:0;border-left:1px solid var(--line2);padding:calc(12px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) 20px 20px}
   .total b{font-size:48px}
-  .vh{padding:calc(20px + env(safe-area-inset-top)) 28px 10px}
   .vh h1{font-size:22px}
   .vscroll{padding:4px 28px 28px}
   .search.block{max-width:420px}
+  .tz > .btn{max-width:320px}
+  .tz > .hint{max-width:520px}
   .hlist{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;align-items:start}
   .day,.more,.hlist .none{grid-column:1/-1}
   .mbody{grid-template-columns:minmax(260px,1fr) 1.4fr;align-items:start}
@@ -280,19 +300,16 @@ label.btn{display:grid;place-items:center;cursor:pointer}
 <div class="app">
   <!-- ============ 会計 ============ -->
   <section class="view v-register" data-view="register">
-    <header class="top">
-      <h1>会計</h1>
-      <label class="kid"><span>カルテID</span><input data-bind="karteId" inputmode="numeric" autocomplete="off" autocapitalize="off" autocorrect="off" enterkeyhint="done" placeholder="番号を入れる"></label>
-      <button class="iconbtn find" data-act="find" aria-label="メニューを探す"></button>
-      <label class="search wide"><input data-bind="q" type="search" placeholder="メニューを探す" autocomplete="off" enterkeyhint="search"></label>
-    </header>
-    <div class="catrow">
-      <nav class="cats" aria-label="分類"></nav>
-      <div class="searchrow" hidden>
-        <label class="search"><input data-bind="q" type="search" placeholder="メニューを探す" autocomplete="off" enterkeyhint="search"></label>
-        <button class="textbtn" data-act="find-close">閉じる</button>
+    <header class="tz">
+      <div class="top">
+        <h1>会計</h1>
+        <label class="kid"><span>カルテID</span><input data-bind="karteId" inputmode="numeric" autocomplete="off" autocapitalize="off" autocorrect="off" enterkeyhint="done" placeholder="番号を入れる"></label>
+        <label class="search wide"><input data-bind="q" type="search" placeholder="メニューを探す" autocomplete="off" enterkeyhint="search"></label>
       </div>
-    </div>
+      <label class="search narrow"><input data-bind="q" type="search" placeholder="メニューを探す" autocomplete="off" enterkeyhint="search"><button type="button" class="clr" data-act="clear-q" aria-label="探す字を消す" hidden></button></label>
+      <nav class="cats" aria-label="分類"></nav>
+      <div class="info" hidden></div>
+    </header>
     <main class="grid"></main>
     <section class="bar">
       <button class="sum" data-act="open-sheet"><span class="cnt"></span><span class="tot n"></span></button>
@@ -318,22 +335,30 @@ label.btn{display:grid;place-items:center;cursor:pointer}
 
   <!-- ============ 履歴 ============ -->
   <section class="view v-history" data-view="history" hidden>
-    <header class="vh"><h1>履歴</h1><div class="today"></div></header>
-    <div class="vscroll">
+    <header class="tz">
+      <div class="vh"><h1>履歴</h1></div>
+      <div class="today"></div>
       <label class="search block"><input data-bind="histQ" type="search" placeholder="カルテID・メモ・領収書番号で探す" autocomplete="off" enterkeyhint="search"></label>
-      <div class="hlist"></div>
-    </div>
+    </header>
+    <div class="vscroll"><div class="hlist"></div></div>
   </section>
 
   <!-- ============ 月次 ============ -->
   <section class="view v-monthly" data-view="monthly" hidden>
-    <header class="vh"><h1>月次</h1></header>
-    <div class="vscroll"><nav class="months" aria-label="月"></nav><div class="mbody"></div></div>
+    <header class="tz">
+      <div class="vh"><h1>月次</h1></div>
+      <nav class="months" aria-label="月"></nav>
+      <button class="btn" data-act="csv">この月をCSVで書き出す</button>
+    </header>
+    <div class="vscroll"><div class="mbody"></div></div>
   </section>
 
   <!-- ============ 設定 ============ -->
   <section class="view v-settings" data-view="settings" hidden>
-    <header class="vh"><h1>設定</h1></header>
+    <header class="tz">
+      <div class="vh"><h1>設定</h1></div>
+      <p class="hint">メニューは、押すと直せます。売上と設定の控えは、下の「バックアップ」から取れます。</p>
+    </header>
     <div class="vscroll">
       <div class="sgrid">
         <div class="scol">
@@ -363,6 +388,10 @@ label.btn{display:grid;place-items:center;cursor:pointer}
             <div class="two"><button class="btn" data-act="backup-export">書き出す</button><label class="btn" for="bkfile">読み込む</label></div>
             <input type="file" id="bkfile" accept="application/json,.json,text/plain" class="vhid" tabindex="-1">
           </section>
+          <section class="card">
+            <h2>画面</h2>
+            <button class="sw pillsw" data-act="toggle-pill" role="switch" aria-checked="false"><span>右上の時刻・電波の表示をよける<small>閉じたスマホで、右上の表示と重なるときにオンにします</small></span><i></i></button>
+          </section>
         </div>
         <p class="ver"></p>
       </div>
@@ -379,7 +408,7 @@ label.btn{display:grid;place-items:center;cursor:pointer}
 "use strict";
 /* 自費会計 —— 売上と設定は、この端末の中（localStorage の jihi-config / jihi-sales）にだけ保存する。
    保存の鍵名とデータの形は、2026年7月の最初の版から変えていない（前の版で入れた売上がそのまま読める）。 */
-var VERSION = "2026-11-21";
+var VERSION = "2026-11-21b";
 var K_CFG = "jihi-config", K_SALES = "jihi-sales";
 var DEFAULT_PROVISO = "自由診療として";
 var HIST_PAGE = 100;
@@ -441,7 +470,8 @@ var I = {
   search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7.5"/><path d="m20.5 20.5-4.2-4.2"/></svg>',
   chev: '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
   up: '<svg viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg>',
-  check: '<svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>'
+  check: '<svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+  x: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>'
 };
 
 /* ---------- 保存と読み込み ---------- */
@@ -487,7 +517,7 @@ function persistConfig(next) { if (!saveKey(K_CFG, next)) return false; config =
 function persistSales(next) { if (!saveKey(K_SALES, next)) return false; sales = next; return true; }
 
 /* ---------- いまの状態 ---------- */
-var st = { view: "register", cart: [], karteId: "", memo: "", proviso: DEFAULT_PROVISO, printItems: false, cat: "すべて", q: "", finding: false, optOpen: false, histQ: "", histLimit: HIST_PAGE, selMonth: null };
+var st = { view: "register", cart: [], karteId: "", memo: "", proviso: DEFAULT_PROVISO, printItems: false, cat: "すべて", q: "", optOpen: false, histQ: "", histLimit: HIST_PAGE, selMonth: null };
 
 function cats() {
   var names = [], other = false;
@@ -522,9 +552,15 @@ function renderRegister() {
   var cs = cats();
   if (cs.indexOf(st.cat) < 0) st.cat = "すべて";
   $(".cats").innerHTML = cs.map(function (c) { return '<button class="chip' + (c === st.cat ? " on" : "") + '" data-act="cat" data-v="' + esc(c) + '">' + esc(c) + "</button>"; }).join("");
-  $(".cats").hidden = st.finding;
-  $(".searchrow").hidden = !st.finding;
+  var info = $(".info"); info.hidden = cs.length > 0;
+  if (!cs.length) { var d = todayTotals(); info.innerHTML = '<span>今日<b class="n">' + d.c + '</b>件<b class="n">' + yen(d.t) + '</b></span><span>次 No.<b class="n">' + pad5(config.receiptCounter) + "</b></span>"; }
+  $(".search.narrow .clr").hidden = !st.q;
   renderGrid(); renderBar(); renderPane();
+}
+function todayTotals() {
+  var k = dayKey(new Date().toISOString()), c = 0, t = 0;
+  sales.forEach(function (x) { if (!x.voided && dayKey(x.date) === k) { c++; t += Number(x.total) || 0; } });
+  return { c: c, t: t };
 }
 function renderGrid() {
   var q = kana(st.q.trim()), g = $(".grid");
@@ -536,9 +572,9 @@ function renderGrid() {
   if (!list.length) { g.innerHTML = '<div class="blank">「' + esc(st.q.trim()) + "」に当たるメニューがありません。</div>"; return; }
   g.innerHTML = list.map(function (m) {
     var n = qtyOf(m.id);
-    return '<div class="tile' + (n ? " on" : "") + '" data-act="add" data-v="' + esc(m.id) + '" role="button" tabindex="0"><span class="nm">' + seg(m.name) + '</span><span class="q n">' + n + '</span>' +
+    return '<div class="tile' + (n ? " on" : "") + '" data-act="add" data-v="' + esc(m.id) + '" role="button" tabindex="0"><span class="nm">' + seg(m.name) + (m.taxRate === 10 ? "" : "<small>非課税</small>") + '</span><span class="q n">' + n + '</span>' +
       '<button class="minus" data-act="dec" data-v="' + esc(m.id) + '" aria-label="' + esc(m.name) + "を1つ減らす\"" + (n ? "" : ' tabindex="-1"') + ">−</button>" +
-      '<span class="pr n">' + (m.taxRate === 10 ? "" : "<small>非課税</small>") + yen(m.price) + "</span></div>";
+      '<span class="pr n">' + yen(m.price) + "</span></div>";
   }).join("");
 }
 function renderBar() {
@@ -567,9 +603,24 @@ function renderOpt() {
   $(".opt .cur").innerHTML = "<em>" + esc(bits.join("・")) + "</em>" + I.chev;
   $(".opt").setAttribute("aria-expanded", st.optOpen ? "true" : "false");
   $(".optbody").hidden = !st.optOpen;
-  $(".sw").setAttribute("aria-checked", st.printItems ? "true" : "false");
+  $(".optbody .sw").setAttribute("aria-checked", st.printItems ? "true" : "false");
 }
 function isWide() { return window.matchMedia("(min-width:700px)").matches; }
+/* 閉じたスマホ（横466×縦678ほど）をホーム画面から開くと、右上に時刻と電波の表示がかぶさる。
+   画面の大きさと開き方から見分けて、上の段の右側を空ける。設定で手動の切り替えもできる（この端末だけの設定で、バックアップには入れない） */
+var K_UI = "jihi-ui";
+function loadUI() { try { var v = JSON.parse(localStorage.getItem(K_UI) || "{}"); return (v && typeof v === "object") ? v : {}; } catch (e) { return {}; } }
+function saveUI(u) { try { localStorage.setItem(K_UI, JSON.stringify(u)); } catch (e) {} }
+/* ホーム画面から開いていて、幅が430〜700・高さが760未満（横に広く背が低い）なら、閉じたスマホとみなす。縦長のふつうの iPhone は当てはまらない */
+function pillAuto() { return navigator.standalone === true && ((window.innerWidth >= 430 && window.innerWidth < 700 && window.innerHeight < 760) || insetRight() >= 40); }
+/* 端末が「右側は避けて」と知らせてくる幅（知らせてこない端末では 0）。右上の表示のぶんを知らせてくる場合に備えて、見分けの材料にする */
+function insetRight() {
+  var d = document.createElement("div");
+  d.style.cssText = "position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;padding-right:env(safe-area-inset-right)";
+  document.body.appendChild(d); var v = parseFloat(getComputedStyle(d).paddingRight) || 0; document.body.removeChild(d); return v;
+}
+function pillOn() { var u = loadUI().pill; return u === "on" || (u !== "off" && pillAuto()); }
+function applyPill() { document.documentElement.classList.toggle("pill", !isWide() && pillOn()); }
 function openSheet() { document.body.classList.add("sheet"); }
 function closeSheet() { document.body.classList.remove("sheet"); $(".pane").classList.remove("kb"); }
 function setBound(key, val, except) {
@@ -774,8 +825,7 @@ function renderMonthly() {
   var rows = Object.keys(br).map(function (k) { return [k, br[k]]; }).sort(function (a, b) { return b[1].amt - a[1].amt; });
   var max = rows.length ? rows[0][1].amt : 0;
   $(".mbody").innerHTML =
-    '<section class="card msum"><div class="lab">' + cm.replace("-", "年") + '月の売上（取消は除く）</div><div class="big n">' + yen(total) + '</div><div class="cnt"><b class="n">' + list.length + "</b>件</div>" +
-    '<button class="btn full" data-act="csv" style="margin-top:14px">この月をCSVで書き出す</button></section>' +
+    '<section class="card msum"><div class="lab">' + cm.replace("-", "年") + '月の売上（取消は除く）</div><div class="big n">' + yen(total) + '</div><div class="cnt"><b class="n">' + list.length + "</b>件</div></section>" +
     '<section class="card"><h2>メニュー別</h2>' + (rows.length ? rows.map(function (r) {
       return '<div class="brow"><div class="l"><span>' + esc(r[0]) + "<small class=\"n\">×" + esc(r[1].qty) + '</small></span><b class="n">' + yen(r[1].amt) + '</b></div><div class="bg"><i style="width:' + (max ? Math.max(2, Math.round(r[1].amt / max * 100)) : 0) + '%"></i></div></div>';
     }).join("") : '<p class="none">この月の会計はまだありません。</p>') + "</section>";
@@ -804,6 +854,7 @@ function saveFile(blob, name, type) {
 function fillSettings() {
   $$("[data-cfg]").forEach(function (el) { var v = config[el.dataset.cfg]; el.value = v == null ? "" : v; });
   renderLogo(); renderMenus();
+  $(".pillsw").setAttribute("aria-checked", pillOn() ? "true" : "false");
   $(".ver").textContent = "自費会計　" + VERSION + " 版";
 }
 function renderLogo() {
@@ -961,11 +1012,11 @@ function openDlg(html, onOpen) {
   if (dlgResolve) { var r0 = dlgResolve; dlgResolve = null; r0(undefined); }
   var d = $(".dlg"), fresh = d.cloneNode(false);        /* 前の小窓の仕掛けを残さない */
   d.parentNode.replaceChild(fresh, d);
-  fresh.innerHTML = html; $(".dlgwrap").hidden = false; $(".dlgwrap").scrollTop = 0;
+  fresh.innerHTML = html; $(".dlgwrap").classList.remove("kb"); $(".dlgwrap").hidden = false; $(".dlgwrap").scrollTop = 0;
   if (onOpen) onOpen(fresh);
   return new Promise(function (res) { dlgResolve = res; });
 }
-function closeDlg(val) { $(".dlgwrap").hidden = true; $(".dlg").innerHTML = ""; var r = dlgResolve; dlgResolve = null; if (r) r(val); }
+function closeDlg(val) { $(".dlgwrap").hidden = true; $(".dlgwrap").classList.remove("kb"); $(".dlg").innerHTML = ""; var r = dlgResolve; dlgResolve = null; if (r) r(val); }
 function ask(o) {
   return openDlg("<h2>" + esc(o.title) + "</h2>" + (o.body ? "<p>" + esc(o.body) + "</p>" : "") +
     '<div class="dacts"><button class="btn" data-dlg="cancel">' + esc(o.cancel || "やめる") + '</button><button class="btn ' + (o.danger ? "dng" : "pri") + '" data-dlg="ok">' + esc(o.ok) + "</button></div>").then(function (v) { return v === "ok"; });
@@ -998,8 +1049,8 @@ var act = {
   "toggle-opt": function () { st.optOpen = !st.optOpen; renderOpt(); },
   "toggle-print-items": function () { st.printItems = !st.printItems; renderOpt(); },
   issue: function () { issue(); },
-  find: function () { st.finding = true; renderRegister(); var el = $(".searchrow input"); if (el) el.focus(); },
-  "find-close": function () { st.finding = false; setBound("q", ""); renderRegister(); },
+  "clear-q": function () { setBound("q", ""); renderRegister(); },
+  "toggle-pill": function () { var u = loadUI(); u.pill = pillOn() ? "off" : "on"; saveUI(u); applyPill(); $(".pillsw").setAttribute("aria-checked", pillOn() ? "true" : "false"); },
   reprint: function (v) { var s = findSale(v); if (s) receiptDialog(s, false); },
   "void": function (v) { toggleVoid(v); },
   more: function () { st.histLimit += HIST_PAGE; renderHistory(); },
@@ -1023,14 +1074,21 @@ document.addEventListener("click", function (e) {
 });
 document.addEventListener("keydown", function (e) {
   if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches('[role="button"][data-act]')) { e.preventDefault(); e.target.click(); return; }
-  if (e.key === "Enter" && e.target.matches && e.target.matches("input[data-bind], input[data-cfg]")) { e.target.blur(); return; }
+  if (e.key === "Enter" && e.target.tagName === "INPUT" && e.target.type !== "file") {
+    /* 小窓の中では次の欄へ進み、最後の欄ではキーボードを閉じる */
+    var box = e.target.closest(".dlg"), next = null;
+    if (box) { var ins = $$("input", box).filter(function (x) { return x.type !== "file"; }); next = ins[ins.indexOf(e.target) + 1] || null; }
+    e.preventDefault();
+    if (next) next.focus(); else e.target.blur();
+    return;
+  }
   if (e.key === "Escape") { if (!$(".dlgwrap").hidden) closeDlg("cancel"); else closeSheet(); }
 });
 document.addEventListener("input", function (e) {
   var el = e.target;
   if (el.dataset && el.dataset.bind) {
     var k = el.dataset.bind; setBound(k, el.value, el);
-    if (k === "q") renderGrid();
+    if (k === "q") { $(".search.narrow .clr").hidden = !st.q; renderGrid(); }
     else if (k === "histQ") { st.histLimit = HIST_PAGE; renderHistory(); }
     else if (k === "proviso" || k === "memo") renderOpt();
     return;
@@ -1061,9 +1119,11 @@ document.addEventListener("change", function (e) {
 document.addEventListener("focusout", function (e) {
   if (e.target.dataset && e.target.dataset.cfg === "receiptCounter" && $(".dlgwrap").hidden) e.target.value = config.receiptCounter;
   if (e.target.closest && e.target.closest(".pane")) setTimeout(function () { var a = document.activeElement; if (!(a && a.closest && a.closest(".pane") && a.tagName === "INPUT")) $(".pane").classList.remove("kb"); }, 60);
+  if (e.target.closest && e.target.closest(".dlg")) setTimeout(function () { var a = document.activeElement; if (!(a && a.closest && a.closest(".dlg") && a.tagName === "INPUT")) $(".dlgwrap").classList.remove("kb"); }, 60);
 });
 /* せまい画面では、下から出るお会計の中で文字を打つとキーボードに隠れる。打っている間だけ上に寄せる */
 document.addEventListener("focusin", function (e) {
+  if (!isWide() && e.target.tagName === "INPUT" && e.target.type !== "file" && e.target.closest && e.target.closest(".dlg")) { $(".dlgwrap").classList.add("kb"); $(".dlgwrap").scrollTop = 0; }
   if (!isWide() && e.target.tagName === "INPUT" && e.target.closest && e.target.closest(".pane")) {
     $(".pane").classList.add("kb");
     var el = e.target; setTimeout(function () { try { el.scrollIntoView({ block: "center" }); } catch (err) {} }, 80);
@@ -1076,8 +1136,10 @@ function start() {
   $(".tabs").innerHTML = [["register", "pay", "会計"], ["history", "hist", "履歴"], ["monthly", "month", "月次"], ["settings", "conf", "設定"]].map(function (t) {
     return '<button class="tab" data-act="tab" data-v="' + t[0] + '">' + I[t[1]] + "<span>" + t[2] + "</span></button>";
   }).join("");
-  $(".find").innerHTML = I.search;
   $$(".search").forEach(function (l) { l.insertAdjacentHTML("afterbegin", I.search); });
+  $(".search .clr").innerHTML = I.x;
+  applyPill();
+  window.addEventListener("resize", applyPill);
   setBound("proviso", DEFAULT_PROVISO);
   render();
   if (loadTrouble.length) notice(STOP_TITLE, STOP_BODY);
